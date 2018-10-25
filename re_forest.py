@@ -1,18 +1,18 @@
 """
 
+Random forest regressor trained on real estate housing data, obtaining 98% test accuracy.  The code cleans 
+and prepares the data by inserting missing balues based on mode/mean of the available data or dropping entire 
+fetaure vectors that do not contain enough information to be useful.  
 @Author: Jason St. George 2018
 
 """
-
 from sys import argv
-import numpy as np
 import pandas as pd
 from sklearn import preprocessing
 from sklearn.metrics import make_scorer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import r2_score
-from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import train_test_split
 
 
@@ -114,9 +114,9 @@ def convert_categorical(data, prnt=False):
     encoder = preprocessing.LabelEncoder()
     categorical = list(data.select_dtypes(include=['object']).columns.values)
 
-    for value in categorical:
-        encoder.fit(data[value])
-        data[value] = encoder.transform(data[value])
+    for v in categorical:
+        encoder.fit(data[v])
+        data[v] = encoder.transform(data[v])
 
     if prnt:
         print(categorical)
@@ -125,7 +125,7 @@ def convert_categorical(data, prnt=False):
     return data
 
 
-def shuffle_split(data, target, prnt=False):
+def shuffle_split(data, target, prnt=False, r_state=0):
     """
     Shuffle and split data to prepare for training/testing
     :param data: normalized numeric dataset
@@ -133,15 +133,15 @@ def shuffle_split(data, target, prnt=False):
     :param prnt: Bool
     :return: Train and Test sets
     """
-    feature_train_all = data[:1460]
-    feature_test = data[1460:]
-    X_train, X_test, y_train, y_test = train_test_split(feature_train_all,target, test_size = 0.2, random_state = 0)
+    train = data[:1460]
+    test = data[1460:]
+    X_train, X_test, y_train, y_test = train_test_split(train, target, test_size = 0.2, random_state = r_state)
 
     if prnt:
-        print(feature_test)
+        print(test)
         range(10,100,10)
 
-    return X_train, X_test, y_train, y_test, feature_test
+    return X_train, X_test, y_train, y_test, test
 
 
 def fit_model(X, y, r_state, n_trees, max_depth):
@@ -156,8 +156,8 @@ def fit_model(X, y, r_state, n_trees, max_depth):
     """
     random_forest = RandomForestRegressor(random_state=r_state, n_estimators=n_trees, max_depth=max_depth)
     parameters = {'n_estimators': range(10, n_trees, 10)}
-    scoring_fnc = make_scorer(r2_score)
-    grid = GridSearchCV(random_forest, parameters, scoring_fnc)
+    scorer = make_scorer(r2_score)
+    grid = GridSearchCV(random_forest, parameters, scorer)
     grid = grid.fit(X, y)
 
     return grid.best_estimator_
@@ -172,12 +172,13 @@ def main():
         r_state, n_trees, max_depth, prnt = int(argv[1]), int(argv[2]), int(argv[3]), bool(argv[4])
 
     train, test, target = get_data()
-    data = pd.concat([train, test])
 
     if prnt:
         print(data.head())
         print(data.info())
         print(data.describe(include=['O']))
+
+    data = pd.concat([train, test])
 
     cleaned_data = clean_data(data, prnt)
     normalized_data = normalize(cleaned_data, prnt)
